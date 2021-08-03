@@ -62,3 +62,60 @@ churn_total = churn.groupby(churn["churn"]).count()
 churn_percentage = churn_total / churn_total.sum() * 100
 
 plot_stacked_bars(churn_percentage.transpose(), "Churning status", (5, 5), legend_="lower right")
+
+activity = train[["id", "activity_new", "churn"]]
+
+activity = activity.groupby([activity["activity_new"], activity["churn"]])["id"].count().unstack(level=1).sort_values(
+    by=[0], ascending=False)
+
+activity.plot(kind="bar",
+              figsize=(18, 10),
+              width=2,
+              stacked=True,
+              title="SME Activity")
+# Labels
+plt.ylabel("Number of companies")
+plt.xlabel("Activity")
+# Rename legend
+plt.legend(["Retention", "Churn"], loc="upper right")
+# Remove the label for the xticks as the categories are encoded and we can't draw any meaning from them yet
+plt.xticks([])
+plt.show()
+
+activity_total = activity.fillna(0)[0] + activity.fillna(0)[1]
+activity_percentage = activity.fillna(0)[1] / (activity_total) * 100
+pd.DataFrame({"Percentage churn": activity_percentage,
+              "Total companies": activity_total}).sort_values(by="Percentage churn",
+                                                              ascending=False).head(10)
+
+channel = train[["id", "channel_sales", "churn"]]
+
+channel = channel.groupby([channel["channel_sales"],
+                           channel["churn"]])["id"].count().unstack(level=1).fillna(0)
+
+channel_churn = (channel.div(channel.sum(axis=1), axis=0) * 100).sort_values(by=[1], ascending=False)
+
+plot_stacked_bars(channel_churn, "Sales Channel", rot_=30)
+
+channel_total = channel.fillna(0)[0] + channel.fillna(0)[1]
+channel_percentage = channel.fillna(0)[1] / (channel_total) * 100
+pd.DataFrame({"Churn percentage": channel_percentage,
+              "Total companies": channel_total}).sort_values(by="Churn percentage",
+                                                             ascending=False).head(10)
+
+consumption = train[["id", "cons_12m", "cons_gas_12m", "cons_last_month", "imp_cons", "has_gas", "churn"]]
+
+def plot_distribution(dataframe, column, ax, bins_=50):
+    """
+    Plot variable distirbution in a stacked histogram of churned or retained company
+    """
+    # Create a temporal dataframe with the data to be plot
+    temp = pd.DataFrame({"Retention": dataframe[dataframe["churn"] == 0][column],
+                         "Churn": dataframe[dataframe["churn"] == 1][column]})
+    # Plot the histogram
+    temp[["Retention", "Churn"]].plot(kind='hist', bins=bins_, ax=ax, stacked=True)
+    # X-axis label
+    ax.set_xlabel(column)
+    # Change the x-axis to plain style
+    ax.ticklabel_format(style='plain', axis='x')
+
